@@ -47,16 +47,15 @@ public class RainMuffler {
     }
 
     private static boolean performFullCheck(World world, BlockPos pos) {
-        // Null-safe config access with fallback
         int maxDepth = InteriorRainSoundClient.CONFIG != null ?
                 InteriorRainSoundClient.CONFIG.max_search_depth :
-                24; // Default value
+                24;
 
+        // Remove the HashSet parameter from the call
         return !FloodFillEngine.canReachSky(
                 world,
-                pos.mutableCopy(),
-                new HashSet<>(),
-                maxDepth // Pass config value directly
+                pos.mutableCopy(), // This should be a BlockPos.Mutable
+                maxDepth
         );
     }
 }
