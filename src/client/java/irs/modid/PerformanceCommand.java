@@ -28,7 +28,7 @@ public class PerformanceCommand {
             // 2. Performance stats command
             dispatcher.register(CommandManager.literal("rainmufflerstats")
                     .executes(context -> {
-                        RainMuffler.printPerformanceStats(context.getSource().getPlayerOrThrow());
+                        PerformanceMonitor.printPerformanceStats(context.getSource().getPlayerOrThrow());
                         return 1;
                     })
             );

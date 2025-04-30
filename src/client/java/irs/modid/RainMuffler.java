@@ -1,291 +1,63 @@
 package irs.modid;
 
-import net.minecraft.block.BlockState;
-import net.minecraft.block.StairsBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
-import net.minecraft.util.Identifier;
-
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class RainMuffler {
-    // Performance tracking
-    private static final AtomicLong totalTimeNanos = new AtomicLong();
-    private static final AtomicInteger callCount = new AtomicInteger();
-    private static final AtomicLong peakTimeNanos = new AtomicLong();
-    private static final AtomicInteger cacheHits = new AtomicInteger();
-    //public static boolean debugMode = false;
-
-    // Flood-fill config
-    //private static final int MAX_SEARCH_DEPTH = 24;
-    private static final Direction[] SEARCH_DIRECTIONS = Direction.values();
-
-    // Caching system
-    //private static final int CACHE_TICKS = 10; // Re-check every 10 ticks (~0.5s)
-    private static final double MAX_MOVE_DIST_SQ = 2.0 * 2.0; // Re-check if moved >2 blocks
-    private static boolean lastResult = false;
-    static BlockPos lastCheckedPos = BlockPos.ORIGIN;
-    static long lastCheckedTick = 0;
-
-    // ===== New Fields =====
-    private static RegistryKey<Biome> lastBiomeKey;
-    private static final double BIOME_CHECK_RADIUS = 4.0; // Blocks
-
-    private static final Set<RegistryKey<Biome>> DRY_BIOMES = Set.of(
-            RegistryKey.of(RegistryKeys.BIOME, Identifier.of("minecraft", "desert")),
-            RegistryKey.of(RegistryKeys.BIOME, Identifier.of("minecraft", "badlands"))
-    );
-
-    private static int getMaxSearchDepth() {
-        return InteriorRainSoundClient.CONFIG.max_search_depth;
-    }
-
-    private static int getCacheTicks() {
-        return InteriorRainSoundClient.CONFIG.cache_ticks;
-    }
-
-    public static boolean isDebugMode() {
-        return InteriorRainSoundClient.CONFIG != null &&
-                InteriorRainSoundClient.CONFIG.debug_mode;
-    }
-
-    public static boolean isDryBiome(RegistryKey<Biome> biome) {
-        return InteriorRainSoundClient.CONFIG.biome_settings.enabled &&
-                InteriorRainSoundClient.CONFIG.biome_settings.ignore_deserts &&
-                DRY_BIOMES.contains(biome);
-    }
-
     public static boolean isInEnclosedSpace() {
         long startTime = System.nanoTime();
         try {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null || client.world == null || client.player == null) {
-                return false;
-            }
+            if (invalidClientState(client)) return false;
 
             ClientWorld world = client.world;
             BlockPos currentPos = client.player.getBlockPos();
             long currentTick = world.getTime();
 
-            // 1. Dry biome check (skip processing if in desert/badlands)
-            RegistryEntry<Biome> biome = world.getBiome(currentPos);
-            if (DRY_BIOMES.contains(biome.getKey().orElse(null))) {
-                if (isDebugMode()) System.out.println("[Biome] Dry biome - skipping check");
-                updateCache(false, currentPos, currentTick, world);
+            // 1. Biome check
+            if (BiomeChecker.shouldSkipCheck(world, currentPos)) {
+                CacheManager.updateCache(false, currentPos, currentTick, world);
                 return false;
             }
 
-            // 2. A quick pass sky check
-            if (quickSkyCheck(world, currentPos)) {
-                updateCache(false, currentPos, currentTick, world);
+            // 2. Quick vertical check
+            if (FloodFillEngine.quickSkyCheck(world, currentPos)) {
+                CacheManager.updateCache(false, currentPos, currentTick, world);
                 return false;
             }
 
-            // 3. Check cache validity
-            if (shouldUseCache(world, currentPos, currentTick)) {
-                return lastResult;
-            }
-
-            // 3. Sky visibility check
-            if (world.isSkyVisible(currentPos)) {
-                updateCache(false, currentPos, currentTick, world);
-                return false;
+            // 3. Cache check
+            if (CacheManager.shouldUseCache(world, currentPos, currentTick)) {
+                return CacheManager.getLastResult();
             }
 
             // 4. Full flood-fill check
-            boolean result = !canReachSky(world, currentPos.mutableCopy(), new HashSet<>(), 0);
-            updateCache(result, currentPos, currentTick, world);
+            boolean result = performFullCheck(world, currentPos);
+            CacheManager.updateCache(result, currentPos, currentTick, world);
             return result;
         } finally {
-            long duration = System.nanoTime() - startTime;
-            if (isDebugMode()) {
-                totalTimeNanos.addAndGet(duration);
-                callCount.incrementAndGet();
-            }
+            PerformanceMonitor.recordExecution(System.nanoTime() - startTime);
         }
     }
 
-    // ===== Updated Cache Check =====
-    private static boolean shouldUseCache(World world, BlockPos currentPos, long currentTick) {
-        // 1. Check time and movement first (existing logic)
-        if (currentTick == lastCheckedTick) {
-            cacheHits.incrementAndGet();
-            return true;
-        }
-
-        double distSq = currentPos.getSquaredDistance(lastCheckedPos);
-        boolean cacheValid = (currentTick - lastCheckedTick < getCacheTicks())
-                && (distSq <= MAX_MOVE_DIST_SQ);
-
-        // 2. Biome check - invalidate if biome changed significantly
-        RegistryKey<Biome> currentBiome = world.getBiome(currentPos).getKey().orElse(null);
-        if (cacheValid && currentBiome != null && !currentBiome.equals(lastBiomeKey)) {
-            BlockPos biomeCheckPos = currentPos.add(
-                    (int)(BIOME_CHECK_RADIUS * (world.random.nextDouble() - 0.5)),
-                    0,
-                    (int)(BIOME_CHECK_RADIUS * (world.random.nextDouble() - 0.5))
-            );
-            RegistryKey<Biome> nearbyBiome = world.getBiome(biomeCheckPos).getKey().orElse(null);
-            if (!currentBiome.equals(nearbyBiome)) {
-                cacheValid = false; // Biome transition area
-            }
-        }
-
-        if (isDebugMode()) {
-            System.out.println("[Cache] Biome: " + currentBiome + " | Valid: " + cacheValid);
-        }
-        return cacheValid;
+    private static boolean invalidClientState(MinecraftClient client) {
+        return client == null || client.world == null || client.player == null;
     }
 
-    // ===== Updated Cache Update =====
-    private static void updateCache(boolean result, BlockPos pos, long tick, World world) {
-        lastResult = result;
-        lastCheckedPos = pos.toImmutable();
-        lastCheckedTick = tick;
-        lastBiomeKey = world.getBiome(pos).getKey().orElse(null); // Update biome
-    }
+    private static boolean performFullCheck(World world, BlockPos pos) {
+        // Null-safe config access with fallback
+        int maxDepth = InteriorRainSoundClient.CONFIG != null ?
+                InteriorRainSoundClient.CONFIG.max_search_depth :
+                24; // Default value
 
-    // ... [keep printPerformanceStats() unchanged] ...
-
-    private static boolean quickSkyCheck(World world, BlockPos pos) {
-        BlockPos.Mutable mutablePos = pos.mutableCopy();
-        for (int y = pos.getY(); y < world.getHeight(); y++) {
-            mutablePos.setY(y);
-            BlockState state = world.getBlockState(mutablePos);
-
-            // 1. Explicitly block stairs (critical!)
-            if (state.getBlock() instanceof StairsBlock) {
-                if (isDebugMode()) System.out.println("[Raycast] Blocked by stair at " + mutablePos);
-                return false;
-            }
-
-            // 2. Check passability (same logic as flood-fill)
-            if (!isAirOrPassable(world, mutablePos)) {
-                if (isDebugMode()) System.out.println("[Raycast] Blocked by solid block at " + mutablePos);
-                return false;
-            }
-        }
-        return true; // Found open sky
-    }
-
-    // Optimized BFS implementation (instead of recursion)
-    private static boolean canReachSky(World world, BlockPos.Mutable startPos, Set<BlockPos> visited, int depth) {
-        Queue<BlockPos> queue = new LinkedList<>();
-        queue.add(startPos.toImmutable());
-        visited.add(startPos.toImmutable());
-
-        while (!queue.isEmpty() && depth <= getMaxSearchDepth()) {
-            int levelSize = queue.size();
-            for (int i = 0; i < levelSize; i++) {
-                BlockPos pos = queue.poll();
-
-                // --- Critical Fix: Check stairs first ---
-                BlockState state = world.getBlockState(pos);
-                if (state.getBlock() instanceof StairsBlock) {
-                    if (isDebugMode()) {
-                        debugChat("Blocked by stair at " + pos);
-                    }
-                    continue; // Skip neighbors of stairs
-                }
-
-                if (world.isSkyVisible(pos)) {
-                    return true;
-                }
-
-                if (!isAirOrPassable(world, pos)) {
-                    continue;
-                }
-
-                for (Direction dir : SEARCH_DIRECTIONS) {
-                    BlockPos neighbor = pos.offset(dir);
-                    if (!visited.contains(neighbor)) {
-                        visited.add(neighbor);
-                        queue.add(neighbor);
-                    }
-                }
-            }
-            depth++;
-        }
-        debugChat("No sky access found (max depth reached)");
-        return false;
-    }
-
-    private static boolean checkBlock(World world, BlockPos pos) {
-        if (world.isSkyVisible(pos)) return true;
-
-        BlockState state = world.getBlockState(pos);
-        if (state.getBlock() instanceof StairsBlock) return false;
-
-        return isAirOrPassable(world, pos);
-    }
-
-    private static boolean isAirOrPassable(World world, BlockPos pos) {
-        BlockState state = world.getBlockState(pos);
-
-        // Explicitly block all stairs (even if their collision shape is empty)
-        if (state.getBlock() instanceof StairsBlock) {
-            return false;
-        }
-
-        return state.isAir() || state.isReplaceable() ||
-                state.getCollisionShape(world, pos).isEmpty();
-    }
-
-    public static void printPerformanceStats(PlayerEntity player) {
-        if (callCount.get() == 0) return;
-
-        double totalMs = totalTimeNanos.get() / 1_000_000.0;
-        double avgMs = totalMs / callCount.get();
-
-        player.sendMessage(Text.literal("=== Rain Muffler Stats ===").formatted(Formatting.GOLD), false);
-        player.sendMessage(Text.literal(String.format(
-                "Checks: %d | Avg: %.2fms | Peak: %.2fms",
-                callCount.get(),
-                avgMs,
-                peakTimeNanos.get() / 1_000_000.0
-        )), false);
-        player.sendMessage(Text.literal(String.format(
-                "Cache Hits: %d (%.1f%%)",
-                cacheHits.get(),
-                cacheHits.get() * 100.0 / callCount.get()
-        )), false);
-
-        // Reset counters
-        totalTimeNanos.set(0);
-        callCount.set(0);
-        peakTimeNanos.set(0);
-        cacheHits.set(0);
-    }
-
-    private static void debugChat(String message) {
-        if (isDebugMode()) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.player != null) {
-                client.player.sendMessage(Text.literal("[RainMuffler] " + message), false);
-            }
-        }
-    }
-
-    private static void debugBlockInfo(World world, BlockPos pos, String status) {
-        BlockState state = world.getBlockState(pos);
-        String blockId = Registries.BLOCK.getId(state.getBlock()).toString();
-        debugChat(String.format("%s @ [%d, %d, %d] (%s)",
-                status, pos.getX(), pos.getY(), pos.getZ(), blockId));
+        return !FloodFillEngine.canReachSky(
+                world,
+                pos.mutableCopy(),
+                new HashSet<>(),
+                maxDepth // Pass config value directly
+        );
     }
 }
