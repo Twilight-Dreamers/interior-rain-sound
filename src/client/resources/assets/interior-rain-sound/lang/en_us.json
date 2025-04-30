@@ -1,0 +1,18 @@
+{
+  "text.autoconfig.interior_rain_sound.title": "Interior Rain Sound Settings",
+
+  "text.autoconfig.interior_rain_sound.category.general": "General",
+  "text.autoconfig.interior_rain_sound.option.max_search_depth": "Max Search Depth",
+  "text.autoconfig.interior_rain_sound.option.max_search_depth.@Tooltip": "How far to check for open sky (blocks)",
+  "text.autoconfig.interior_rain_sound.option.cache_ticks": "Cache Duration",
+  "text.autoconfig.interior_rain_sound.option.cache_ticks.@Tooltip": "Set the cache duration in ticks",
+  "text.autoconfig.interior_rain_sound.option.debug_mode": "Debug Mode",
+  "text.autoconfig.interior_rain_sound.option.debug_mode.@Tooltip": "Enable Debug Mode",
+
+  "text.autoconfig.interior_rain_sound.category.biome_settings": "Biome",
+  "text.autoconfig.interior_rain_sound.option.biome_settings": "Biome Settings",
+  "text.autoconfig.interior_rain_sound.option.biome_settings.enabled": "Enable Biome Checks",
+  "text.autoconfig.interior_rain_sound.option.biome_settings.enabled.@Tooltip": "Enable Biome Checks",
+  "text.autoconfig.interior_rain_sound.option.biome_settings.ignore_deserts": "Ignore Deserts",
+  "text.autoconfig.interior_rain_sound.option.biome_settings.ignore_deserts.@Tooltip": "Ignore Deserts"
+}

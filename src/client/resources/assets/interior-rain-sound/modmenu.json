@@ -1,0 +1,7 @@
+{
+  "modmenu": {
+    "name": "Interior Rain Sound",
+    "description": "text.autoconfig.interior_rain_sound.title",
+    "icon": "assets/interior_rain_sound/icon.png"
+  }
+}
