@@ -186,27 +186,29 @@ public class RainMuffler {
 
     // Optimized BFS implementation (instead of recursion)
     private static boolean canReachSky(World world, BlockPos.Mutable startPos, Set<BlockPos> visited, int depth) {
-        debugChat("Starting flood-fill from " + startPos);
-
         Queue<BlockPos> queue = new LinkedList<>();
         queue.add(startPos.toImmutable());
         visited.add(startPos.toImmutable());
 
         while (!queue.isEmpty() && depth <= getMaxSearchDepth()) {
             int levelSize = queue.size();
-            debugChat("Depth " + depth + " - Checking " + levelSize + " blocks");
-
             for (int i = 0; i < levelSize; i++) {
                 BlockPos pos = queue.poll();
-                debugBlockInfo(world, pos, "Checking");
+
+                // --- Critical Fix: Check stairs first ---
+                BlockState state = world.getBlockState(pos);
+                if (state.getBlock() instanceof StairsBlock) {
+                    if (isDebugMode()) {
+                        debugChat("Blocked by stair at " + pos);
+                    }
+                    continue; // Skip neighbors of stairs
+                }
 
                 if (world.isSkyVisible(pos)) {
-                    debugChat("Found sky access at " + pos);
                     return true;
                 }
 
                 if (!isAirOrPassable(world, pos)) {
-                    debugBlockInfo(world, pos, "Blocked by");
                     continue;
                 }
 
@@ -236,17 +238,13 @@ public class RainMuffler {
     private static boolean isAirOrPassable(World world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
 
-        // 1. Always pass through true air and replaceable blocks
-        if (state.isAir()) return true;
-        if (state.isReplaceable()) return true;
-
-        // 2. Force ALL STAIRS to be solid (regardless of orientation)
+        // Explicitly block all stairs (even if their collision shape is empty)
         if (state.getBlock() instanceof StairsBlock) {
-            return false; // Hard-code stairs as solid
+            return false;
         }
 
-        // 3. Check actual collision shape
-        return state.getCollisionShape(world, pos).isEmpty();
+        return state.isAir() || state.isReplaceable() ||
+                state.getCollisionShape(world, pos).isEmpty();
     }
 
     public static void printPerformanceStats(PlayerEntity player) {
