@@ -4,9 +4,15 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.StairsBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
+import net.minecraft.world.biome.Biome;
+import net.minecraft.util.Identifier;
+
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -31,6 +37,15 @@ public class RainMuffler {
     static BlockPos lastCheckedPos = BlockPos.ORIGIN;
     static long lastCheckedTick = 0;
 
+    // ===== New Fields =====
+    private static RegistryKey<Biome> lastBiomeKey;
+    private static final double BIOME_CHECK_RADIUS = 4.0; // Blocks
+
+    private static final Set<RegistryKey<Biome>> DRY_BIOMES = Set.of(
+            RegistryKey.of(RegistryKeys.BIOME, Identifier.of("minecraft", "desert")),
+            RegistryKey.of(RegistryKeys.BIOME, Identifier.of("minecraft", "badlands"))
+    );
+
     public static boolean isInEnclosedSpace() {
         long startTime = System.nanoTime();
         try {
@@ -43,24 +58,34 @@ public class RainMuffler {
             BlockPos currentPos = client.player.getBlockPos();
             long currentTick = world.getTime();
 
-            if (quickSkyCheck(world, currentPos)) {
-                updateCache(false, currentPos, currentTick);
+            // 1. Dry biome check (skip processing if in desert/badlands)
+            RegistryEntry<Biome> biome = world.getBiome(currentPos);
+            if (DRY_BIOMES.contains(biome.getKey().orElse(null))) {
+                if (debugMode) System.out.println("[Biome] Dry biome - skipping check");
+                updateCache(false, currentPos, currentTick, world);
                 return false;
             }
 
-            // Check cache validity
-            if (shouldUseCache(currentPos, currentTick)) {
+            // 2. A quick pass sky check
+            if (quickSkyCheck(world, currentPos)) {
+                updateCache(false, currentPos, currentTick, world);
+                return false;
+            }
+
+            // 3. Check cache validity
+            if (shouldUseCache(world, currentPos, currentTick)) {
                 return lastResult;
             }
 
-            // Full check required
+            // 3. Sky visibility check
             if (world.isSkyVisible(currentPos)) {
-                updateCache(false, currentPos, currentTick);
+                updateCache(false, currentPos, currentTick, world);
                 return false;
             }
 
+            // 4. Full flood-fill check
             boolean result = !canReachSky(world, currentPos.mutableCopy(), new HashSet<>(), 0);
-            updateCache(result, currentPos, currentTick);
+            updateCache(result, currentPos, currentTick, world);
             return result;
         } finally {
             long duration = System.nanoTime() - startTime;
@@ -71,34 +96,41 @@ public class RainMuffler {
         }
     }
 
-    private static boolean shouldUseCache(BlockPos currentPos, long currentTick) {
-        // 1. Same tick? Always use cache
-        if (currentTick == lastCheckedTick) {
-            if (debugMode) System.out.println("[Cache] HIT (same tick)");
-            return true;
-        }
+    // ===== Updated Cache Check =====
+    private static boolean shouldUseCache(World world, BlockPos currentPos, long currentTick) {
+        // 1. Check time and movement first (existing logic)
+        if (currentTick == lastCheckedTick) return true;
 
-        // 2. Check distance and cache duration
         double distSq = currentPos.getSquaredDistance(lastCheckedPos);
         boolean cacheValid = (currentTick - lastCheckedTick < CACHE_TICKS)
                 && (distSq <= MAX_MOVE_DIST_SQ);
 
-        if (debugMode) {
-            if (cacheValid) {
-                System.out.printf("[Cache] HIT (pos: %.1f blocks, age: %d ticks)\n",
-                        Math.sqrt(distSq), currentTick - lastCheckedTick);
-            } else {
-                System.out.printf("[Cache] MISS (pos: %.1f blocks, age: %d ticks)\n",
-                        Math.sqrt(distSq), currentTick - lastCheckedTick);
+        // 2. Biome check - invalidate if biome changed significantly
+        RegistryKey<Biome> currentBiome = world.getBiome(currentPos).getKey().orElse(null);
+        if (cacheValid && currentBiome != null && !currentBiome.equals(lastBiomeKey)) {
+            BlockPos biomeCheckPos = currentPos.add(
+                    (int)(BIOME_CHECK_RADIUS * (world.random.nextDouble() - 0.5)),
+                    0,
+                    (int)(BIOME_CHECK_RADIUS * (world.random.nextDouble() - 0.5))
+            );
+            RegistryKey<Biome> nearbyBiome = world.getBiome(biomeCheckPos).getKey().orElse(null);
+            if (!currentBiome.equals(nearbyBiome)) {
+                cacheValid = false; // Biome transition area
             }
+        }
+
+        if (debugMode) {
+            System.out.println("[Cache] Biome: " + currentBiome + " | Valid: " + cacheValid);
         }
         return cacheValid;
     }
 
-    private static void updateCache(boolean result, BlockPos pos, long tick) {
+    // ===== Updated Cache Update =====
+    private static void updateCache(boolean result, BlockPos pos, long tick, World world) {
         lastResult = result;
         lastCheckedPos = pos.toImmutable();
         lastCheckedTick = tick;
+        lastBiomeKey = world.getBiome(pos).getKey().orElse(null); // Update biome
     }
 
     // ... [keep printPerformanceStats() unchanged] ...
