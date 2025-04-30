@@ -19,7 +19,6 @@ public class RainMuffler {
 
             // 1. Biome check
             if (BiomeChecker.shouldSkipCheck(world, currentPos)) {
-                CacheManager.updateCache(false, currentPos, currentTick, world);
                 return false;
             }
 
@@ -31,7 +30,7 @@ public class RainMuffler {
 
             // 3. Cache check
             if (CacheManager.shouldUseCache(world, currentPos, currentTick)) {
-                return CacheManager.getLastResult();
+                return CacheManager.getLastResult() && !FloodFillEngine.quickSkyCheck(world, currentPos);
             }
 
             // 4. Full flood-fill check
@@ -48,16 +47,15 @@ public class RainMuffler {
     }
 
     private static boolean performFullCheck(World world, BlockPos pos) {
-        // Null-safe config access with fallback
         int maxDepth = InteriorRainSoundClient.CONFIG != null ?
                 InteriorRainSoundClient.CONFIG.max_search_depth :
-                24; // Default value
+                24;
 
+        // Remove the HashSet parameter from the call
         return !FloodFillEngine.canReachSky(
                 world,
-                pos.mutableCopy(),
-                new HashSet<>(),
-                maxDepth // Pass config value directly
+                pos.mutableCopy(), // This should be a BlockPos.Mutable
+                maxDepth
         );
     }
 }

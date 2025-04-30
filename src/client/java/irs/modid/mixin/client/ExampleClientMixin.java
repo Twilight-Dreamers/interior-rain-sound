@@ -1,32 +1,56 @@
+// ExampleClientMixin.java
 package irs.modid.mixin.client;
 
+import irs.modid.InteriorRainSoundClient;
 import irs.modid.RainMuffler;
+import irs.modid.VolumeAdjustingSoundInstance;
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.client.sound.SoundSystem;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SoundSystem.class)
 public abstract class ExampleClientMixin {
-	@Redirect(
+	@Unique
+	private static float currentRainVolume = 1.0f;
+	@Unique
+	private static float targetRainVolume = 1.0f;
+
+	@Inject(method = "tick()V", at = @At("HEAD"))
+	private void updateRainVolume(CallbackInfo ci) {
+		float transitionSpeed = InteriorRainSoundClient.CONFIG != null ?
+				MathHelper.clamp(InteriorRainSoundClient.CONFIG.transition_speed, 0.01f, 1.0f) :
+				0.1f;
+
+		currentRainVolume = MathHelper.clamp(
+				MathHelper.lerp(transitionSpeed, currentRainVolume, targetRainVolume),
+				0.0f,
+				1.0f  // Ensure volume stays within valid range
+		);
+	}
+
+	@ModifyVariable(
 			method = "play(Lnet/minecraft/client/sound/SoundInstance;)V",
-			at = @At(
-					value = "INVOKE",
-					target = "Lnet/minecraft/client/sound/SoundInstance;getVolume()F"
-			)
+			at = @At("HEAD"),
+			argsOnly = true
 	)
-	private float adjustRainVolume(SoundInstance sound) {
+	private SoundInstance modifyRainSound(SoundInstance sound) {
 		if (isRainSound(sound)) {
-			boolean enclosed = RainMuffler.isInEnclosedSpace();
-			if (enclosed) {
-				return sound.getVolume() * 0.2f;
-			}
+			float interiorVolume = InteriorRainSoundClient.CONFIG != null ?
+					MathHelper.clamp(InteriorRainSoundClient.CONFIG.interior_volume, 0.0f, 1.0f) :
+					0.2f;
+
+			targetRainVolume = RainMuffler.isInEnclosedSpace() ? interiorVolume : 1.0f;
+			return new VolumeAdjustingSoundInstance(sound, MathHelper.clamp(currentRainVolume, 0.0f, 1.0f));
 		}
-		return sound.getVolume();
+		return sound;
 	}
 
 	@Unique
@@ -34,15 +58,4 @@ public abstract class ExampleClientMixin {
 		return sound.getCategory() == SoundCategory.WEATHER &&
 				sound.getId().equals(Identifier.of("minecraft", "weather.rain"));
 	}
-
-
-
-	/*
-	private boolean isRainSound(SoundInstance sound) {
-		Identifier id = sound.getId();
-		return sound.getCategory() == SoundCategory.WEATHER &&
-				(id.getPath().contains("rain") || id.getPath().contains("weather"));
-	}
-	 */
-
 }

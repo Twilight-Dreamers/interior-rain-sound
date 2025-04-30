@@ -48,4 +48,24 @@ public class PerformanceMonitor {
         peakTimeNanos.set(0);
         cacheHits.set(0);
     }
+
+    public static double getAverageTime() {
+        return callCount.get() > 0 ?
+                totalTimeNanos.get() / 1_000_000.0 / callCount.get() :
+                0.0;
+    }
+
+    public static double getPeakTime() {
+        return peakTimeNanos.get() / 1_000_000.0;
+    }
+
+    public static double getCacheHitRate() {
+        return callCount.get() > 0 ?
+                (cacheHits.get() * 100.0) / callCount.get() :
+                0.0;
+    }
+
+    public static int getCacheHits() {
+        return cacheHits.get();
+    }
 }
