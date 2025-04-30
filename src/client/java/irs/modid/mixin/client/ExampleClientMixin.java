@@ -35,14 +35,6 @@ public abstract class ExampleClientMixin {
 				sound.getId().equals(Identifier.of("minecraft", "weather.rain"));
 	}
 
-
-
-	/*
-	private boolean isRainSound(SoundInstance sound) {
-		Identifier id = sound.getId();
-		return sound.getCategory() == SoundCategory.WEATHER &&
-				(id.getPath().contains("rain") || id.getPath().contains("weather"));
-	}
-	 */
+	
 
 }

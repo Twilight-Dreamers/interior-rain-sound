@@ -7,6 +7,10 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientBlockEntityEvents
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.JanksonConfigSerializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.render.RenderTickCounter;
 
 import static irs.modid.PerformanceMonitor.printPerformanceStats;
 
@@ -43,5 +47,34 @@ public class InteriorRainSoundClient implements ClientModInitializer, ModMenuApi
 
 		// 3. Debug command registration
 		PerformanceCommand.register();
+
+		// F3 Debug
+		HudRenderCallback.EVENT.register(this::onHudRender);
+	}
+	private void onHudRender(DrawContext context, RenderTickCounter tickCounter) {
+		MinecraftClient client = MinecraftClient.getInstance();
+
+		// Check both debug HUD visibility and mod's debug mode
+		if (client.getDebugHud().shouldShowDebugHud() &&
+				InteriorRainSoundClient.CONFIG.debug_mode) {
+
+			// Position below vanilla debug info
+			int x = 4;
+			int y = client.getWindow().getScaledHeight() - 40;
+
+			// White text with dark background
+			context.fill(x - 2, y - 2, x + 100, y + 30, 0x80000000);
+
+			context.drawText(client.textRenderer,
+					"[Rain Muffler]", x, y, 0xFFFFFF, false);
+
+			context.drawText(client.textRenderer,
+					String.format("Avg: %.2fms", PerformanceMonitor.getAverageTime()),
+					x, y + 10, 0x00FF00, false); // Green
+
+			context.drawText(client.textRenderer,
+					String.format("Cache: %.1f%%", PerformanceMonitor.getCacheHitRate()),
+					x, y + 20, 0xFFA500, false); // Orange
+		}
 	}
 }

@@ -19,7 +19,6 @@ public class RainMuffler {
 
             // 1. Biome check
             if (BiomeChecker.shouldSkipCheck(world, currentPos)) {
-                CacheManager.updateCache(false, currentPos, currentTick, world);
                 return false;
             }
 
@@ -31,7 +30,7 @@ public class RainMuffler {
 
             // 3. Cache check
             if (CacheManager.shouldUseCache(world, currentPos, currentTick)) {
-                return CacheManager.getLastResult();
+                return CacheManager.getLastResult() && !FloodFillEngine.quickSkyCheck(world, currentPos);
             }
 
             // 4. Full flood-fill check
