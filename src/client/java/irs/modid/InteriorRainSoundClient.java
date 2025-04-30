@@ -8,8 +8,7 @@ import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.JanksonConfigSerializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
-import static irs.modid.RainMuffler.isDebugMode;
-import static irs.modid.RainMuffler.printPerformanceStats;
+import static irs.modid.PerformanceMonitor.printPerformanceStats;
 
 public class InteriorRainSoundClient implements ClientModInitializer, ModMenuApi {
 	public static ModConfig CONFIG;
@@ -28,16 +27,16 @@ public class InteriorRainSoundClient implements ClientModInitializer, ModMenuApi
 
 		// 2. Block update listener (no need for manual ModMenu registration)
 		ClientBlockEntityEvents.BLOCK_ENTITY_LOAD.register((blockEntity, world) -> {
-			if (RainMuffler.lastCheckedPos != null &&
-					blockEntity.getPos().getSquaredDistance(RainMuffler.lastCheckedPos) < 16 * 16) {
-				RainMuffler.lastCheckedTick = 0;
+			if (CacheManager.lastCheckedPos != null &&  // Changed here
+					blockEntity.getPos().getSquaredDistance(CacheManager.lastCheckedPos) < 16 * 16) {
+				CacheManager.lastCheckedTick = 0;
 			}
 		});
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player != null &&
 					client.player.age % 600 == 0 && // Every 30 seconds (20 ticks/sec * 30)
-					isDebugMode()) {
+					DebugLogger.isDebugMode()) {
 				printPerformanceStats(client.player);
 			}
 		});
