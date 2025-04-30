@@ -1,21 +1,14 @@
 package irs.modid.mixin.client;
 
 import irs.modid.RainMuffler;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.client.sound.SoundSystem;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import irs.modid.RainMuffler; // Your utility class
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.player.PlayerEntity;
 
 @Mixin(SoundSystem.class)
 public abstract class ExampleClientMixin {
@@ -36,6 +29,7 @@ public abstract class ExampleClientMixin {
 		return sound.getVolume();
 	}
 
+	@Unique
 	private boolean isRainSound(SoundInstance sound) {
 		return sound.getCategory() == SoundCategory.WEATHER &&
 				sound.getId().equals(Identifier.of("minecraft", "weather.rain"));
