@@ -1,18 +1,16 @@
 package irs.modid;
 
+import net.minecraft.block.BlockState;
+import net.minecraft.block.StairsBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
-import net.minecraft.block.BlockState;
-import java.util.Set;
+
 import java.util.HashSet;
-import net.minecraft.block.*;
-import net.minecraft.state.property.Properties;
-import net.minecraft.registry.Registries;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.shape.VoxelShape;
+import java.util.Set;
 
 public class RainMuffler {
     private static final int MAX_SEARCH_DEPTH = 32;
