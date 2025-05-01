@@ -6,6 +6,8 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+import java.util.function.Supplier;
+
 public class PerformanceCommand {
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -28,7 +30,16 @@ public class PerformanceCommand {
             // 2. Performance stats command
             dispatcher.register(CommandManager.literal("rainmufflerstats")
                     .executes(context -> {
-                        RainMuffler.printPerformanceStats(context.getSource().getPlayerOrThrow());
+                        PerformanceMonitor.printPerformanceStats(context.getSource().getPlayerOrThrow());
+                        return 1;
+                    })
+            );
+
+            // In PerformanceCommand.java
+            dispatcher.register(CommandManager.literal("rainmufflercachereset")
+                    .executes(ctx -> {
+                        CacheManager.reset();
+                        ctx.getSource().sendFeedback((Supplier<Text>) Text.literal("Cache reset!"), false);
                         return 1;
                     })
             );

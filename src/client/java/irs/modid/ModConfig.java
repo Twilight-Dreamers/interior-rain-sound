@@ -21,6 +21,16 @@ public class ModConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public boolean debug_mode = false;
 
+    @ConfigEntry.Category("sound")
+    @ConfigEntry.Gui.Tooltip
+    @ConfigEntry.BoundedDiscrete(min = 0, max = 1)
+    public float interior_volume = 0.2f;  // 20% volume when inside
+
+    @ConfigEntry.Category("sound")
+    @ConfigEntry.Gui.Tooltip
+    @ConfigEntry.BoundedDiscrete(min = 0, max = 1)
+    public float transition_speed = 0.1f;  // Medium transition speed
+
     @ConfigEntry.Category("biome_settings")
     @ConfigEntry.Gui.CollapsibleObject
     public BiomeSettings biome_settings = new BiomeSettings();
