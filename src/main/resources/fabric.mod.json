@@ -2,7 +2,7 @@
 	"schemaVersion": 1,
 	"id": "interior-rain-sound",
 	"version": "${version}",
-	"name": "Interior Rain Sound",
+	"name": "Interior Rain Sound Fix",
 	"description": "This is an example description! Tell everyone what your mod is about!",
 	"authors": [
 		"Me!"
