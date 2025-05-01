@@ -11,7 +11,7 @@
 		"homepage": "https://modrinth.com/user/MrPicklees",
 		"sources": "Not yet"
 	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/interior-rain-sound/icon.png",
 	"environment": "*",
 	"entrypoints": {
