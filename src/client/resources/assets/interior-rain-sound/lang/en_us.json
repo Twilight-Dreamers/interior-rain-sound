@@ -14,7 +14,7 @@
   "text.autoconfig.interior_rain_sound.option.transition_speed.@Tooltip": "Adjust the speed of volume change when entering exiting (0-1)",
 
   "text.autoconfig.interior_rain_sound.option.debug_mode": "Debug Mode",
-  "text.autoconfig.interior_rain_sound.option.debug_mode.@Tooltip": "Enable Debug Mode",
+  "text.autoconfig.interior_rain_sound.option.debug_mode.@Tooltip": "Enable horrible Debug Mode that is probably half working",
 
   "text.autoconfig.interior_rain_sound.category.biome_settings": "Biome",
   "text.autoconfig.interior_rain_sound.option.biome_settings": "Biome Settings",
