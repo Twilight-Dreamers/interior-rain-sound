@@ -1,15 +1,15 @@
 {
 	"schemaVersion": 1,
 	"id": "interior-rain-sound",
-	"version": "${version}",
+	"version": "1.0.0-alpha",
 	"name": "Interior Rain Sound Fix",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "This lower the volume of the rain when inside.",
 	"authors": [
-		"Me!"
+		"MrPicklees"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"homepage": "https://modrinth.com/user/MrPicklees",
+		"sources": "Not yet"
 	},
 	"license": "CC0-1.0",
 	"icon": "assets/interior-rain-sound/icon.png",
