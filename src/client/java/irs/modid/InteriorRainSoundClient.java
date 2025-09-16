@@ -51,8 +51,9 @@ public class InteriorRainSoundClient implements ClientModInitializer, ModMenuApi
 		// F3 Debug
 		HudRenderCallback.EVENT.register(this::onHudRender);
 	}
+
 	// RenderTickCounter is changed to float
-	private void onHudRender(DrawContext context, float tickCounter) {
+	private void onHudRender(DrawContext context, RenderTickCounter tickCounter) {
 		MinecraftClient client = MinecraftClient.getInstance();
 
 		// Check both debug HUD visibility and mod's debug mode
